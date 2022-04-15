@@ -1,0 +1,64 @@
+---
+title: "Time Series Project"
+author: "Sri Hari Sivashanmugam"
+date: "31/03/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data
+
+```{r}
+#install.packages("readxl")
+library("readxl")
+AQI_data<-read_excel('AirQualityUCI.xlsx')
+```
+
+```{r}
+dim(AQI_data)
+```
+
+```{r}
+summary(AQI_data)
+```
+
+```{r}
+AQI_data<-AQI_data[,c(1,2,10)]
+```
+
+```{r}
+plot(head(AQI_data$`NO2(GT)`,100),ty='l')
+```
+
+```{r}
+AQI_data
+```
+
+```{r}
+AQI_data$Date <- as.Date(AQI_data$Date)
+AQI_data_new<-aggregate(AQI_data$`NO2(GT)`, by=list(AQI_data$Date), mean)
+```
+
+```{r}
+plot(AQI_data_new$x,ty='l')
+```
+
+\#Identify trend and seasonality of the NO2 over time
+
+```{r}
+data_low <- ts(loess(AQI_data_new$x~c(1:391),span=0.5)$fitted,start=1,frequency = 365)
+data_hi <- ts(AQI_data_new$x-loess(AQI_data_new$x~c(1:391),span=0.1)$fitted,start=1,frequency=365)
+data_cycles <- AQI_data_new$x-data_low-data_hi
+plot(ts.union(AQI_data_new$x,data_low,data_hi,data_cycles),main = '')
+```
+
+We identify the non-stationarity of the data. And there is a linear multiplicative (upward) trend. There is a cycle.
+
+<https://towardsdatascience.com/trend-seasonality-moving-average-auto-regressive-model-my-journey-to-time-series-data-with-edc4c0c8284b>
+
+```{r}
+
+```
