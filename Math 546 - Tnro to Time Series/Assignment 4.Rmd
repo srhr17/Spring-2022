@@ -1,0 +1,136 @@
+---
+title: "Assignment 4"
+author: "Sri Hari Sivashanmugam"
+date: "06/03/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 2
+
+```{r}
+df <- read.table(file="huron_depth.csv",sep=",",header=TRUE)
+```
+
+```{r}
+df
+```
+
+```{r}
+df$Date <- strptime(df$Date,"%m/%d/%Y")
+df$year <- as.numeric(format(df$Date, format="%Y"))
+df$month <- as.numeric(format(df$Date, format="%m"))
+head(df,2)
+```
+
+```{r}
+df <- subset(df,month==1)
+huron_depth <- df$Average
+year <- df$year
+plot(huron_depth~year,type="l")
+```
+
+```{r}
+model=arima(df$Average,order = c(2,0,1))
+model
+```
+
+```{r}
+se=sqrt(diag(model$var.coef))[3]
+se
+```
+
+Using Fisher Information CI
+
+```{r}
+print(paste("Upper Bound : ",model$coef[3]+1.96*se))
+print(paste("Lower Bound : ",model$coef[3]-1.96*se))
+```
+
+```{r}
+confint(model,parm = "ma1")
+```
+
+Profile Likelihood Method
+
+```{r}
+B<-500
+ma1<-seq(from=-0.9,to=1.9,length=B)
+profile_loglik<-rep(NA,B)
+for(i in 1:B)
+{
+  profile_loglik[i]<-logLik(arima(df$Average,order = c(2,0,1),fixed = c(NA,NA,ma1[i],NA)))
+}
+```
+
+```{r}
+profile_loglik
+```
+
+```{r}
+plot(profile_loglik-ma1,ty='l')
+```
+
+```{r}
+max(profile_loglik[1:365]) - profile_loglik[1:365] - 1.92
+```
+
+Lower bound
+
+```{r}
+max(profile_loglik[1:365]) - profile_loglik[93] - 1.92
+max(profile_loglik[1:365]) - profile_loglik[94] - 1.92
+```
+
+```{r}
+ma1[93]
+ma1[94]
+```
+
+```{r}
+max(profile_loglik[1:365]) - profile_loglik[1:365] + 1.92
+```
+
+We don't have any upper bound value, because the model does not converge.
+
+```{r}
+ma1[365]
+```
+
+Bootstrap method
+
+```{r}
+set.seed(17)
+J <- 1000
+params <- coef(model)
+ar <- params[grep("^ar",names(params))]
+ma <- params[grep("^ma",names(params))]
+intercept <- params["intercept"]
+sigma <- sqrt(model$sigma2)
+theta <- matrix(NA,nrow=J,ncol=length(params),
+dimnames=list(NULL,names(params)))
+for(j in 1:J){
+Y_j <- arima.sim(
+list(ar=ar,ma=ma),
+n=length(huron_depth),
+sd=sigma
+)+intercept
+theta[j,] <- coef(arima(Y_j,order=c(2,0,1)))
+}
+hist(theta[,"ma1"],freq=FALSE)
+par(mai=c(0.8,0.8,0.5,0.1))
+```
+
+```{r}
+theta$ma1=sort(theta[,"ma1"])
+#print(paste("Range : ",range(theta$ma1)))
+print(theta$ma1[25])
+print(theta$ma1[975])
+```
+
+The bootstrap method yields better result than the other two.
